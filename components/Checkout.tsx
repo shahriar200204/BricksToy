@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CreditCard, Truck, AlertCircle, Copy, Check, Tag } from 'lucide-react';
+import { ArrowLeft, CreditCard, Truck, AlertCircle, Copy, Check, Tag, MessageCircle } from 'lucide-react';
 import { CartItem, PaymentMethod, OrderDetails, Coupon } from '../types';
 
 interface CheckoutProps {
@@ -25,6 +25,10 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, validCoupons, onBack, on
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState('');
+
+  // Admin WhatsApp Number (Replace with yours)
+  // Format: 880 + 10 digits (without +)
+  const ADMIN_WHATSAPP = "8801700000000"; 
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const shipping = 120; // BDT
@@ -92,12 +96,40 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, validCoupons, onBack, on
       total,
       status: 'Pending'
     };
+
+    // --- WhatsApp Integration ---
+    const itemsList = cartItems.map(item => `• ${item.name} (x${item.quantity}) - ৳${item.price * item.quantity}`).join('\n');
     
-    // Simulate processing delay
+    const whatsappMessage = `*New Order: ${orderId}*
+📅 Date: ${date}
+
+*Customer Details:*
+👤 Name: ${formData.name}
+📱 Phone: ${formData.phone}
+📍 Address: ${formData.address}, ${formData.city}
+
+*Order Summary:*
+${itemsList}
+----------------
+Subtotal: ৳${subtotal}
+Shipping: ৳${shipping}
+${discountAmount > 0 ? `Discount: -৳${discountAmount}\n` : ''}
+*TOTAL: ৳${Math.round(total)}*
+
+*Payment:*
+Method: ${paymentMethod.toUpperCase()}
+${transactionId ? `TrxID: ${transactionId}` : ''}
+`;
+
+    // Open WhatsApp
+    const url = `https://wa.me/${ADMIN_WHATSAPP}?text=${encodeURIComponent(whatsappMessage)}`;
+    window.open(url, '_blank');
+    
+    // Complete local order
     setTimeout(() => {
       onPlaceOrder(orderDetails);
       setIsProcessing(false);
-    }, 2000);
+    }, 1000);
   };
 
   return (
@@ -357,10 +389,15 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, validCoupons, onBack, on
               disabled={isProcessing}
               className="w-full mt-8 bg-brand-red text-white py-4 rounded-xl font-bold text-lg hover:bg-red-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isProcessing ? 'Processing...' : `Place Order • ৳${Math.round(total)}`}
+              {isProcessing ? 'Processing...' : (
+                <>
+                  <MessageCircle size={20} />
+                  <span>Place Order on WhatsApp • ৳{Math.round(total)}</span>
+                </>
+              )}
             </button>
             <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
-              <CreditCard size={12} /> Secure Checkout
+              <CreditCard size={12} /> Order sent securely to admin
             </p>
           </div>
         </div>
