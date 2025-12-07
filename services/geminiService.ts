@@ -1,4 +1,4 @@
-import { GoogleGenAI, Chat } from "@google/genai";
+import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { PRODUCTS } from "../constants";
 
 let chatSession: Chat | null = null;
@@ -21,13 +21,8 @@ Rules:
 
 export const initializeChat = async () => {
   try {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      console.error("API Key missing");
-      return null;
-    }
-    
-    const ai = new GoogleGenAI({ apiKey });
+    // Fix: Use process.env.API_KEY directly in the constructor as per guidelines
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     chatSession = ai.chats.create({
       model: 'gemini-2.5-flash',
       config: {
@@ -55,7 +50,11 @@ export const sendMessageToGemini = async function* (message: string) {
   try {
     const result = await chatSession.sendMessageStream({ message });
     for await (const chunk of result) {
-      yield chunk.text;
+      // Fix: Cast chunk to GenerateContentResponse and use .text property safely
+      const c = chunk as GenerateContentResponse;
+      if (c.text) {
+        yield c.text;
+      }
     }
   } catch (error) {
     console.error("Gemini Error:", error);
