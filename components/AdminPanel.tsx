@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Package, ShoppingCart, Trash2, Plus, X, Check, Search, LogOut, Tag, Folder } from 'lucide-react';
+import { Package, ShoppingCart, Trash2, Plus, LogOut, Tag, Folder, Save, Copy, RotateCcw } from 'lucide-react';
 import { Product, OrderDetails, OrderStatus, Coupon } from '../types';
 
 interface AdminPanelProps {
@@ -33,7 +33,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'categories' | 'marketing'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'categories' | 'marketing' | 'save'>('products');
   
   // New Product Form State
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
@@ -50,6 +50,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     discountType: 'fixed',
     isActive: true
   });
+
+  const [generatedCode, setGeneratedCode] = useState('');
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +100,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
             isActive: true
         });
         setNewCoupon({ discountType: 'fixed', isActive: true, code: '', value: 0 });
+    }
+  };
+
+  const generatePublishCode = () => {
+    const code = `import { Product } from './types';
+
+// COPY THIS ENTIRE CONTENT INTO YOUR constants.ts FILE
+
+export const PRODUCTS: Product[] = ${JSON.stringify(products, null, 2)};
+
+export const INITIAL_CATEGORIES = ${JSON.stringify(categories, null, 2)};
+`;
+    setGeneratedCode(code);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(generatedCode);
+    alert('Code copied to clipboard! Now paste it into your constants.ts file.');
+  };
+
+  const handleResetStorage = () => {
+    if(confirm('Are you sure? This will delete all local Admin changes and revert to the live website version.')) {
+      localStorage.removeItem('products');
+      localStorage.removeItem('categories');
+      localStorage.removeItem('coupons');
+      window.location.reload();
     }
   };
 
@@ -174,11 +202,82 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
               </span>
             )}
           </button>
+          <div className="mt-auto border-t border-gray-100">
+             <button 
+              onClick={() => { setActiveTab('save'); generatePublishCode(); }}
+              className={`w-full p-4 flex items-center gap-3 font-medium transition-colors ${activeTab === 'save' ? 'bg-green-50 text-green-700 border-r-4 border-green-600' : 'text-green-600 hover:bg-green-50'}`}
+            >
+              <Save size={20} /> Publish Changes
+            </button>
+          </div>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8">
           
+          {/* SAVE/PUBLISH TAB */}
+          {activeTab === 'save' && (
+            <div className="max-w-4xl mx-auto space-y-6">
+               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+                  <h2 className="text-2xl font-bold mb-4 text-slate-900">How to make changes permanent</h2>
+                  <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6 text-sm text-blue-800">
+                     <p className="font-bold mb-2">Why do I need this?</p>
+                     <p>This is a static website. When you add products here, they are only saved in <strong>your browser</strong>. To make them visible to <strong>all customers</strong> permanently, you must update the website code.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                     <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold">1</div>
+                        <p className="font-medium">Make all your changes (Add Products, Categories) in this Admin Panel.</p>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold">2</div>
+                        <p className="font-medium">Copy the code generated below.</p>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold">3</div>
+                        <p className="font-medium">Open the file <code>constants.ts</code> in your project folder.</p>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold">4</div>
+                        <p className="font-medium">Delete everything in that file and paste the code below.</p>
+                     </div>
+                     <div className="flex items-center gap-4">
+                        <div className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold">5</div>
+                        <p className="font-medium">Push to GitHub/Deploy to make it live.</p>
+                     </div>
+                  </div>
+
+                  <div className="mt-8 relative">
+                     <textarea 
+                        readOnly 
+                        value={generatedCode}
+                        className="w-full h-64 bg-slate-900 text-green-400 font-mono text-xs p-4 rounded-xl shadow-inner outline-none"
+                     />
+                     <button 
+                        onClick={copyToClipboard}
+                        className="absolute top-4 right-4 bg-white text-slate-900 px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-100 shadow-md flex items-center gap-2"
+                     >
+                        <Copy size={16} /> Copy Code
+                     </button>
+                  </div>
+               </div>
+
+               <div className="bg-red-50 p-6 rounded-2xl border border-red-100 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-red-800">Troubleshooting</h3>
+                    <p className="text-sm text-red-600 mt-1">If the website looks wrong or you want to undo your local changes.</p>
+                  </div>
+                  <button 
+                    onClick={handleResetStorage}
+                    className="flex items-center gap-2 bg-white border border-red-200 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-50"
+                  >
+                    <RotateCcw size={16} /> Reset to Default
+                  </button>
+               </div>
+            </div>
+          )}
+
           {/* PRODUCTS TAB */}
           {activeTab === 'products' && (
             <div className="max-w-5xl mx-auto space-y-8">
