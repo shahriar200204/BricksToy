@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import ProductCard from './components/ProductCard';
@@ -13,13 +13,34 @@ import { Filter, MessageCircleHeart, CheckCircle, Download, Printer } from 'luci
 
 type ViewState = 'shop' | 'checkout' | 'success' | 'admin';
 
+// Helper to load data from LocalStorage safely
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  if (typeof window === 'undefined') return defaultValue;
+  try {
+    const saved = localStorage.getItem(key);
+    return saved ? JSON.parse(saved) : defaultValue;
+  } catch (error) {
+    console.warn(`Error reading ${key} from localStorage`, error);
+    return defaultValue;
+  }
+};
+
 const App: React.FC = () => {
-  // State
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
-  const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES);
-  const [orders, setOrders] = useState<OrderDetails[]>([]);
-  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  // State with LocalStorage Persistence
+  const [products, setProducts] = useState<Product[]>(() => 
+    loadFromStorage('products', INITIAL_PRODUCTS)
+  );
+  const [categories, setCategories] = useState<string[]>(() => 
+    loadFromStorage('categories', INITIAL_CATEGORIES)
+  );
+  const [orders, setOrders] = useState<OrderDetails[]>(() => 
+    loadFromStorage('orders', [])
+  );
+  const [coupons, setCoupons] = useState<Coupon[]>(() => 
+    loadFromStorage('coupons', [])
+  );
   
+  // Non-persisted UI State
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
@@ -27,6 +48,23 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('shop');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastOrder, setLastOrder] = useState<OrderDetails | null>(null);
+
+  // Persistence Effects (Save to LocalStorage on change)
+  useEffect(() => {
+    localStorage.setItem('products', JSON.stringify(products));
+  }, [products]);
+
+  useEffect(() => {
+    localStorage.setItem('categories', JSON.stringify(categories));
+  }, [categories]);
+
+  useEffect(() => {
+    localStorage.setItem('orders', JSON.stringify(orders));
+  }, [orders]);
+
+  useEffect(() => {
+    localStorage.setItem('coupons', JSON.stringify(coupons));
+  }, [coupons]);
 
   // Admin Actions
   const handleAddProduct = (newProduct: Product) => {
