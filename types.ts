@@ -3,7 +3,7 @@ export interface Product {
   name: string;
   description: string;
   price: number;
-  category: 'Space' | 'City' | 'Minecraft' | 'Marvel' | 'Duplo' | 'Accessories';
+  category: string;
   imageUrl: string;
   rating: number;
   pieces?: number;
@@ -22,6 +22,15 @@ export interface ChatMessage {
 
 export type PaymentMethod = 'bkash' | 'nagad' | 'rocket' | 'cod';
 
+export type OrderStatus = 'Pending' | 'Paid' | 'Shipped' | 'Cancelled';
+
+export interface Coupon {
+  code: string;
+  discountType: 'percent' | 'fixed'; // percent (e.g., 10%) or fixed amount (e.g., 100 tk)
+  value: number;
+  isActive: boolean;
+}
+
 export interface OrderDetails {
   orderId: string;
   date: string;
@@ -30,8 +39,11 @@ export interface OrderDetails {
   address: string;
   city: string;
   paymentMethod: PaymentMethod;
+  transactionId?: string; // For verification
   items: CartItem[];
   subtotal: number;
   shipping: number;
+  discount: number;
   total: number;
+  status: OrderStatus;
 }

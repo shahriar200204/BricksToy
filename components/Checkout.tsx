@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { ArrowLeft, CreditCard, Truck, AlertCircle } from 'lucide-react';
-import { CartItem, PaymentMethod, OrderDetails } from '../types';
+import { ArrowLeft, CreditCard, Truck, AlertCircle, Copy, Check, Tag } from 'lucide-react';
+import { CartItem, PaymentMethod, OrderDetails, Coupon } from '../types';
 
 interface CheckoutProps {
   cartItems: CartItem[];
+  validCoupons: Coupon[];
   onBack: () => void;
   onPlaceOrder: (details: OrderDetails) => void;
 }
 
-const Checkout: React.FC<CheckoutProps> = ({ cartItems, onBack, onPlaceOrder }) => {
+const Checkout: React.FC<CheckoutProps> = ({ cartItems, validCoupons, onBack, onPlaceOrder }) => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -16,11 +17,54 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, onBack, onPlaceOrder }) 
     city: 'Dhaka',
   });
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('bkash');
+  const [transactionId, setTransactionId] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [copied, setCopied] = useState(false);
+  
+  // Coupon State
+  const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState('');
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const shipping = 120; // BDT
-  const total = subtotal + shipping;
+  
+  // Calculate Discount
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === 'percent') {
+        discountAmount = (subtotal * appliedCoupon.value) / 100;
+    } else {
+        discountAmount = appliedCoupon.value;
+    }
+  }
+  
+  const total = Math.max(0, subtotal + shipping - discountAmount);
+
+  const handleApplyCoupon = () => {
+    setCouponError('');
+    if (!couponCode.trim()) return;
+
+    const coupon = validCoupons.find(c => c.code.toLowerCase() === couponCode.toLowerCase() && c.isActive);
+    if (coupon) {
+        setAppliedCoupon(coupon);
+        setCouponCode('');
+    } else {
+        setAppliedCoupon(null);
+        setCouponError('Invalid or expired coupon code');
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode('');
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText("01700000000");
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,10 +84,13 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, onBack, onPlaceOrder }) 
       address: formData.address,
       city: formData.city,
       paymentMethod,
+      transactionId: paymentMethod !== 'cod' ? transactionId : undefined,
       items: cartItems,
       subtotal,
       shipping,
-      total
+      discount: discountAmount,
+      total,
+      status: 'Pending'
     };
     
     // Simulate processing delay
@@ -180,20 +227,39 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, onBack, onPlaceOrder }) 
                 <div className="mt-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
                   <div className="flex items-start gap-3">
                     <AlertCircle className="text-gray-500 shrink-0 mt-0.5" size={18} />
-                    <div className="text-sm text-gray-600">
-                      <p className="font-bold text-gray-800 mb-1">How to pay with {paymentMethod}:</p>
-                      <ol className="list-decimal ml-4 space-y-1">
+                    <div className="text-sm text-gray-600 flex-1">
+                      <p className="font-bold text-gray-800 mb-2">How to pay with {paymentMethod}:</p>
+                      <ol className="list-decimal ml-4 space-y-1 mb-3">
                         <li>Go to your {paymentMethod} app</li>
                         <li>Select "Make Payment"</li>
-                        <li>Enter Merchant Number: <strong>01700000000</strong></li>
+                        <li>Enter Merchant Number:</li>
+                        <li className="flex items-center gap-2 mt-1 mb-1">
+                           <code className="bg-gray-200 px-2 py-1 rounded font-bold text-slate-800">01700000000</code>
+                           <button 
+                              type="button" 
+                              onClick={handleCopy}
+                              className="text-brand-blue hover:text-blue-700 transition-colors"
+                              title="Copy Number"
+                           >
+                              {copied ? <Check size={16} className="text-green-600" /> : <Copy size={16} />}
+                           </button>
+                        </li>
                         <li>Enter Amount: <strong>৳{total}</strong></li>
                         <li>Enter Reference: <strong>BRICKS</strong></li>
                       </ol>
                     </div>
                   </div>
-                  <div className="mt-4">
+                  <div className="mt-4 border-t border-gray-200 pt-4">
                      <label className="block text-sm font-medium text-gray-700 mb-1">Enter Transaction ID (TrxID)</label>
-                     <input type="text" placeholder="e.g. 8N7S6D5F" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-blue outline-none" required />
+                     <input 
+                        type="text" 
+                        placeholder="e.g. 8N7S6D5F" 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-brand-blue outline-none uppercase font-mono tracking-wider" 
+                        required 
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value)}
+                     />
+                     <p className="text-xs text-gray-400 mt-1">This is required to verify your payment.</p>
                   </div>
                 </div>
               )}
@@ -241,9 +307,48 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, onBack, onPlaceOrder }) 
                 <span>Shipping (Inside Dhaka)</span>
                 <span>৳{shipping}</span>
               </div>
+              
+              {/* Coupon Section */}
+              <div className="py-2">
+                 {!appliedCoupon ? (
+                    <div className="flex gap-2">
+                        <input 
+                            type="text" 
+                            placeholder="Coupon Code" 
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-1 focus:ring-brand-blue outline-none uppercase"
+                            value={couponCode}
+                            onChange={(e) => setCouponCode(e.target.value)}
+                        />
+                        <button 
+                            type="button"
+                            onClick={handleApplyCoupon}
+                            className="bg-brand-dark text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-black"
+                        >
+                            Apply
+                        </button>
+                    </div>
+                 ) : (
+                    <div className="flex items-center justify-between bg-green-50 p-2 rounded-lg border border-green-200 text-green-800 text-sm">
+                        <div className="flex items-center gap-2">
+                             <Tag size={14} />
+                             <span className="font-bold">{appliedCoupon.code} Applied</span>
+                        </div>
+                        <button onClick={handleRemoveCoupon} className="text-green-600 hover:text-green-900 font-bold text-xs">Remove</button>
+                    </div>
+                 )}
+                 {couponError && <p className="text-xs text-red-500 mt-1">{couponError}</p>}
+              </div>
+
+              {appliedCoupon && (
+                 <div className="flex justify-between text-green-600 font-medium">
+                    <span>Discount</span>
+                    <span>-৳{Math.round(discountAmount)}</span>
+                </div>
+              )}
+
               <div className="flex justify-between text-xl font-bold text-slate-900 pt-4 border-t border-gray-100">
                 <span>Total</span>
-                <span>৳{total}</span>
+                <span>৳{Math.round(total)}</span>
               </div>
             </div>
 
@@ -252,7 +357,7 @@ const Checkout: React.FC<CheckoutProps> = ({ cartItems, onBack, onPlaceOrder }) 
               disabled={isProcessing}
               className="w-full mt-8 bg-brand-red text-white py-4 rounded-xl font-bold text-lg hover:bg-red-700 shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isProcessing ? 'Processing...' : `Place Order • ৳${total}`}
+              {isProcessing ? 'Processing...' : `Place Order • ৳${Math.round(total)}`}
             </button>
             <p className="text-center text-xs text-gray-400 mt-4 flex items-center justify-center gap-1">
               <CreditCard size={12} /> Secure Checkout

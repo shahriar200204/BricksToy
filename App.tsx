@@ -6,13 +6,20 @@ import CartDrawer from './components/CartDrawer';
 import Checkout from './components/Checkout';
 import AIChatBot from './components/AIChatBot';
 import Footer from './components/Footer';
-import { PRODUCTS, CATEGORIES } from './constants';
-import { CartItem, Product, OrderDetails } from './types';
+import AdminPanel from './components/AdminPanel';
+import { PRODUCTS as INITIAL_PRODUCTS, INITIAL_CATEGORIES } from './constants';
+import { CartItem, Product, OrderDetails, OrderStatus, Coupon } from './types';
 import { Filter, MessageCircleHeart, CheckCircle, Download, Printer } from 'lucide-react';
 
-type ViewState = 'shop' | 'checkout' | 'success';
+type ViewState = 'shop' | 'checkout' | 'success' | 'admin';
 
 const App: React.FC = () => {
+  // State
+  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [categories, setCategories] = useState<string[]>(INITIAL_CATEGORIES);
+  const [orders, setOrders] = useState<OrderDetails[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
@@ -20,6 +27,39 @@ const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('shop');
   const [searchQuery, setSearchQuery] = useState('');
   const [lastOrder, setLastOrder] = useState<OrderDetails | null>(null);
+
+  // Admin Actions
+  const handleAddProduct = (newProduct: Product) => {
+    setProducts(prev => [newProduct, ...prev]);
+  };
+
+  const handleDeleteProduct = (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
+    setOrders(prev => prev.map(order => 
+      order.orderId === orderId ? { ...order, status } : order
+    ));
+  };
+  
+  const handleAddCategory = (cat: string) => {
+      if(!categories.includes(cat)) {
+          setCategories(prev => [...prev, cat]);
+      }
+  };
+
+  const handleDeleteCategory = (cat: string) => {
+      setCategories(prev => prev.filter(c => c !== cat));
+  };
+
+  const handleAddCoupon = (coupon: Coupon) => {
+      setCoupons(prev => [...prev, coupon]);
+  };
+
+  const handleDeleteCoupon = (code: string) => {
+      setCoupons(prev => prev.filter(c => c.code !== code));
+  };
 
   // Cart Logic
   const addToCart = (product: Product) => {
@@ -57,6 +97,7 @@ const App: React.FC = () => {
   const handlePlaceOrder = (details: OrderDetails) => {
     setCartItems([]);
     setLastOrder(details);
+    setOrders(prev => [details, ...prev]); // Add to admin order list
     setView('success');
     window.scrollTo(0,0);
   };
@@ -79,12 +120,31 @@ const App: React.FC = () => {
   };
 
   // Filter Logic
-  const filteredProducts = PRODUCTS.filter(p => {
+  const filteredProducts = products.filter(p => {
     const matchesCategory = activeCategory === 'All' || p.category === activeCategory;
     const matchesSearch = p.name.toLowerCase().includes(searchQuery) || 
                           p.category.toLowerCase().includes(searchQuery);
     return matchesCategory && matchesSearch;
   });
+
+  if (view === 'admin') {
+    return (
+      <AdminPanel 
+        products={products}
+        orders={orders}
+        coupons={coupons}
+        categories={categories}
+        onAddProduct={handleAddProduct}
+        onDeleteProduct={handleDeleteProduct}
+        onUpdateOrderStatus={handleUpdateOrderStatus}
+        onAddCategory={handleAddCategory}
+        onDeleteCategory={handleDeleteCategory}
+        onAddCoupon={handleAddCoupon}
+        onDeleteCoupon={handleDeleteCoupon}
+        onClose={() => setView('shop')}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -95,6 +155,12 @@ const App: React.FC = () => {
         onLogoClick={() => handleNavigation('shop')}
         onSearch={handleSearch}
         onNavigate={handleNavigation}
+        onAdminClick={() => setView('admin')}
+        categories={categories}
+        onCategoryClick={(cat) => {
+            setActiveCategory(cat);
+            setView('shop');
+        }}
       />
       
       {/* View Router */}
@@ -126,7 +192,7 @@ const App: React.FC = () => {
               {!searchQuery && (
                 <div className="flex items-center gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
                   <Filter size={18} className="text-gray-400 mr-2 shrink-0" />
-                  {CATEGORIES.map(cat => (
+                  {categories.map(cat => (
                     <button
                       key={cat}
                       onClick={() => setActiveCategory(cat)}
@@ -175,6 +241,7 @@ const App: React.FC = () => {
       {view === 'checkout' && (
         <Checkout 
           cartItems={cartItems}
+          validCoupons={coupons}
           onBack={() => setView('shop')}
           onPlaceOrder={handlePlaceOrder}
         />
@@ -245,12 +312,27 @@ const App: React.FC = () => {
                     <span>Shipping</span>
                     <span>৳{lastOrder.shipping}</span>
                   </div>
+                  
+                  {lastOrder.discount > 0 && (
+                      <div className="flex justify-between text-sm text-green-600 font-bold">
+                        <span>Discount</span>
+                        <span>-৳{Math.round(lastOrder.discount)}</span>
+                      </div>
+                  )}
+
                   <div className="flex justify-between text-xl font-bold text-slate-900 pt-3 border-t border-gray-200">
                     <span>Total</span>
-                    <span>৳{lastOrder.total}</span>
+                    <span>৳{Math.round(lastOrder.total)}</span>
                   </div>
-                  <div className="mt-4 inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200">
-                    Payment Method: {lastOrder.paymentMethod.toUpperCase()}
+                  <div className="mt-4 flex flex-col gap-1">
+                    <div className="inline-block px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold border border-green-200 self-end">
+                      Payment Method: {lastOrder.paymentMethod.toUpperCase()}
+                    </div>
+                    {lastOrder.transactionId && (
+                      <div className="text-xs text-gray-500 text-right">
+                        TrxID: <span className="font-mono">{lastOrder.transactionId}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -283,7 +365,7 @@ const App: React.FC = () => {
         <MessageCircleHeart size={24} />
       </button>
 
-      <Footer />
+      <Footer onAdminClick={() => setView('admin')} />
 
       {/* Overlays */}
       <CartDrawer 

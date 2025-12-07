@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingBag, Search, Menu, MessageCircleHeart, X } from 'lucide-react';
+import { ShoppingBag, Search, Menu, MessageCircleHeart, X, Lock, ChevronRight } from 'lucide-react';
 import { CartItem } from '../types';
 
 interface NavbarProps {
@@ -9,11 +9,25 @@ interface NavbarProps {
   onLogoClick: () => void;
   onSearch: (query: string) => void;
   onNavigate: (view: 'shop' | 'new') => void;
+  onAdminClick: () => void;
+  categories: string[];
+  onCategoryClick: (cat: string) => void;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ cartItems, onOpenCart, onOpenAI, onLogoClick, onSearch, onNavigate }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  cartItems, 
+  onOpenCart, 
+  onOpenAI, 
+  onLogoClick, 
+  onSearch, 
+  onNavigate,
+  onAdminClick,
+  categories,
+  onCategoryClick
+}) => {
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,6 +42,7 @@ const Navbar: React.FC<NavbarProps> = ({ cartItems, onOpenCart, onOpenAI, onLogo
       onSearch('');
     }
     setIsSearchOpen(!isSearchOpen);
+    setIsMobileMenuOpen(false);
   };
 
   return (
@@ -73,6 +88,9 @@ const Navbar: React.FC<NavbarProps> = ({ cartItems, onOpenCart, onOpenAI, onLogo
               <button onClick={onLogoClick} className="font-medium text-gray-500 hover:text-brand-red transition-colors">Home</button>
               <button onClick={() => onNavigate('shop')} className="font-medium text-gray-500 hover:text-brand-red transition-colors">Shop</button>
               <button onClick={() => onNavigate('new')} className="font-medium text-gray-500 hover:text-brand-red transition-colors">New Arrivals</button>
+              <button onClick={onAdminClick} className="font-medium text-gray-400 hover:text-brand-dark transition-colors flex items-center gap-1">
+                <Lock size={14} /> Admin
+              </button>
             </div>
           )}
 
@@ -104,12 +122,63 @@ const Navbar: React.FC<NavbarProps> = ({ cartItems, onOpenCart, onOpenAI, onLogo
               )}
             </button>
             
-            <button className="md:hidden p-2 text-gray-500">
-              <Menu size={24} />
+            <button 
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 text-gray-500"
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white border-t border-gray-100 absolute w-full left-0 shadow-lg animate-in slide-in-from-top-5 h-[calc(100vh-80px)] overflow-y-auto">
+          <div className="px-4 pt-2 pb-6 space-y-2">
+            <button 
+              onClick={() => { onLogoClick(); setIsMobileMenuOpen(false); }}
+              className="block w-full text-left px-3 py-3 text-base font-medium text-gray-900 rounded-md hover:bg-gray-50"
+            >
+              Home
+            </button>
+            <button 
+              onClick={() => { onNavigate('shop'); setIsMobileMenuOpen(false); }}
+              className="block w-full text-left px-3 py-3 text-base font-medium text-gray-900 rounded-md hover:bg-gray-50"
+            >
+              Shop
+            </button>
+            
+            <div className="px-3 py-2">
+              <p className="text-xs font-bold text-gray-400 uppercase mb-2">Categories</p>
+              <div className="space-y-1 ml-2 border-l border-gray-100 pl-2">
+                 {categories.filter(c => c !== 'All').map(cat => (
+                   <button
+                     key={cat}
+                     onClick={() => { onCategoryClick(cat); setIsMobileMenuOpen(false); }}
+                     className="block w-full text-left py-2 text-sm text-gray-600 hover:text-brand-blue flex justify-between items-center"
+                   >
+                     {cat} <ChevronRight size={14} className="text-gray-300" />
+                   </button>
+                 ))}
+              </div>
+            </div>
+
+            <button 
+              onClick={() => { onNavigate('new'); setIsMobileMenuOpen(false); }}
+              className="block w-full text-left px-3 py-3 text-base font-medium text-gray-900 rounded-md hover:bg-gray-50"
+            >
+              New Arrivals
+            </button>
+            <button 
+              onClick={() => { onAdminClick(); setIsMobileMenuOpen(false); }}
+              className="block w-full text-left px-3 py-3 text-base font-medium text-gray-500 rounded-md hover:bg-gray-50 flex items-center gap-2"
+            >
+              <Lock size={16} /> Admin Panel
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 };

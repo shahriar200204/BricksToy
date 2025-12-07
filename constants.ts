@@ -105,4 +105,4 @@ export const PRODUCTS: Product[] = [
   }
 ];
 
-export const CATEGORIES = ['All', 'Space', 'Minecraft', 'City', 'Marvel', 'Duplo', 'Accessories'];
+export const INITIAL_CATEGORIES = ['All', 'Space', 'Minecraft', 'City', 'Marvel', 'Duplo', 'Accessories'];
